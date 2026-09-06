@@ -13,7 +13,7 @@ from tools.build_skill import ROOT, FILES
 class StockSkillTests(unittest.TestCase):
     def test_tickers_and_market_boundary(self):
         self.assertEqual(ticker(' nvda '), 'NVDA')
-        for value in ['../secrets', '600519', '0700.HK', 'AAPL;whoami', 'BRK/../B', 'CON']:
+        for value in ['../secrets', '0700.HK', 'AAPL;whoami', 'BRK/../B', 'CON']:
             with self.assertRaises(argparse.ArgumentTypeError):
                 ticker(value)
 

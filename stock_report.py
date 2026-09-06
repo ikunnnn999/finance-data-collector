@@ -1,4 +1,4 @@
-"""Download US tickers and generate a portable HTML quantitative report."""
+"""Download US or mainland China tickers and generate a portable HTML report."""
 import argparse
 import base64
 from datetime import datetime, timezone
@@ -21,12 +21,16 @@ import pandas as pd
 from indicators.fama_french import ROOT, URL, URL5, read_factors
 from quant.data import load_panel
 from quant.metrics import performance
+from quant.china import cn_ticker
 
 
 def ticker(value):
     value = value.strip().upper()
+    chinese = cn_ticker(value)
+    if chinese:
+        return chinese
     if not re.fullmatch(r'[A-Z][A-Z0-9]{0,9}(?:[.-][A-Z0-9]{1,4})?', value) or value.endswith(('.HK', '.SS', '.SZ', '.L', '.TO')):
-        raise argparse.ArgumentTypeError('Use a US stock/ETF ticker such as AAPL or NVDA; other markets are not supported')
+        raise argparse.ArgumentTypeError('Use a US ticker or Shanghai/Shenzhen code, e.g. AAPL, 600519 or 000001.SZ')
     reserved = {'CON', 'PRN', 'AUX', 'NUL'} | {f'{prefix}{i}' for prefix in ['COM', 'LPT'] for i in range(1, 10)}
     if value.split('.')[0] in reserved:
         raise argparse.ArgumentTypeError('Ticker conflicts with a reserved filesystem name')
@@ -86,16 +90,27 @@ def html_report(out, symbols, metadata, asset_metrics, analysis, partial_reason)
         ('累计价格收益', f'{first.total_return:.2%}'), ('几何年化', f'{first.geometric_annual_return:.2%}'),
         ('年化波动', f'{first.annual_volatility:.2%}'), ('最大回撤', f'{first.max_drawdown:.2%}')])
     sections = [f'<section><h2>价格收益与风险</h2><p>全分析区间；未扣交易成本。复权与分红口径未独立核验。</p>{table(asset_metrics)}{picture(out / "asset_overview.png", "完整分析区间的价格净值与回撤")}</section>']
-    comparisons = []
-    for name in ['ff3', 'ff5']:
-        comparison = pd.read_csv(analysis / name / 'model_comparison.csv')
-        comparison.insert(0, 'factor_file', name)
-        comparisons.append(comparison)
-    combined = pd.concat(comparisons, ignore_index=True)
-    coefs = pd.read_csv(analysis / 'ff5/coefficients.csv').fillna('')
-    alpha = coefs[(coefs.model == 'FF5') & (coefs.term == 'const')].iloc[0]
+    chinese = metadata.get('market') == 'CN'
+    if chinese:
+        combined = pd.read_csv(analysis / 'model_comparison.csv')
+        coefs = pd.read_csv(analysis / 'coefficients.csv').fillna('')
+        selected = combined.model.iloc[-1]
+        factor_note = metadata['factor_note'] + ' ' + metadata['rf_note']
+        label = '中国市场模型与可选因子回归'
+    else:
+        comparisons = []
+        for name in ['ff3', 'ff5']:
+            comparison = pd.read_csv(analysis / name / 'model_comparison.csv')
+            comparison.insert(0, 'factor_file', name)
+            comparisons.append(comparison)
+        combined = pd.concat(comparisons, ignore_index=True)
+        coefs = pd.read_csv(analysis / 'ff5/coefficients.csv').fillna('')
+        selected = 'FF5'
+        factor_note = '五因子版 SMB 与官方三因子 SMB 不同，约束模型标记为 FF3_restricted_FF5。'
+        label = '资产定价回归'
+    alpha = coefs[(coefs.model == selected) & (coefs.term == 'const')].iloc[0]
     interpretation = 'Alpha 在 5% 水平不显著，尚不足以认定存在非零超额收益。' if float(alpha.p) >= .05 else 'Alpha 在 5% 水平显著；这不证明因果关系或可实现的交易收益。'
-    sections += [f'<section><h2>资产定价回归</h2>{table(combined)}<h3>五因子系数与显著性</h3>{table(coefs[coefs.model == "FF5"])}<p>{interpretation}</p><p>HAC 稳健统计；*** p&lt;0.01，** p&lt;0.05，* p&lt;0.10。五因子版 SMB 与官方三因子 SMB 不同，约束模型标记为 FF3_restricted_FF5。R² 是样本内解释度；annual_alpha_linear 为 252 倍日截距，不是策略年化收益。</p></section>']
+    sections += [f'<section><h2>{label}</h2>{table(combined)}<h3>{escape(selected)} 系数与显著性</h3>{table(coefs[coefs.model == selected])}<p>{interpretation}</p><p>{escape(factor_note)}</p><p>HAC 稳健统计；*** p&lt;0.01，** p&lt;0.05，* p&lt;0.10。R² 是样本内解释度；annual_alpha_linear 为 252 倍日截距，不是策略年化收益。</p></section>']
     if (analysis / 'strategy_metrics.csv').exists():
         run = json.loads((analysis / 'manifest.json').read_text(encoding='utf-8'))
         strategies = pd.read_csv(analysis / 'strategy_metrics.csv')
@@ -113,16 +128,23 @@ def html_report(out, symbols, metadata, asset_metrics, analysis, partial_reason)
     document = '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TITLE</title><style>
     *{box-sizing:border-box}body{margin:0;background:#f3f5f8;color:#192b40;font:16px/1.7 system-ui,-apple-system,"Microsoft YaHei",sans-serif}main{max-width:1120px;margin:auto;padding:40px 24px}header{padding:32px;background:#142d4e;border-radius:18px;color:white}h1{font-size:34px;margin:8px 0}header p{color:#d2dcec}small{color:#97c6d3;letter-spacing:.1em}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0}.card,section{background:white;border:1px solid #e1e7ef;border-radius:14px;padding:24px}.card span{display:block;color:#5c6d7e;font-size:14px}.card strong{font-size:26px}section{margin:20px 0}h2{margin:0 0 12px;font-size:23px}h3{font-size:18px}p{color:#4d6074}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}th,td{text-align:right;padding:10px 12px;border-bottom:1px solid #e8edf3;white-space:nowrap}th{background:#eef3f8}th:first-child,td:first-child{text-align:left}img{max-width:100%;height:auto}figure{margin:20px 0}figcaption{color:#65778b;font-size:13px}.notice{border-left:4px solid #bf8532}a{color:#176c91}footer{font-size:13px;color:#65778b}@media(max-width:650px){main{padding:16px}.cards{grid-template-columns:repeat(2,1fr)}h1{font-size:27px}header,section{padding:20px}}@media print{body{background:white}main{max-width:none;padding:0}section,header{break-inside:avoid}.table-wrap{overflow:visible}table{font-size:10px}.cards{grid-template-columns:repeat(4,1fr)}}
     </style></head><body><main>CONTENT</main></body></html>'''
-    heading = f'<header><small>STOCK QUANT REPORT · US EQUITIES</small><h1>{escape(primary)} 量化分析报告</h1><p>资产池：{escape(", ".join(symbols))}<br>分析：{metadata["analysis_start"]} — {metadata["analysis_end"]} · {metadata["observations"]} 个交易日<br>因子截止：{metadata["factor_end"]} · 生成时间：{escape(metadata["run_utc"])}</p></header><div class="cards">{cards}</div>'
-    notice = f'<section class="notice"><h2>数据说明</h2><p>来源：{escape(metadata["price_source"])}。没有删去异常收益，也没有填充缺失交易日；无效价格或缺口会使分析停止。复权与分红口径未独立验证，结果是研究诊断，不能等同于可实现的投资业绩。美国因子只用于当前美股范围。</p></section>'
+    market_label = 'CN A-SHARES · CNY' if chinese else 'US EQUITIES · USD'
+    heading = f'<header><small>STOCK QUANT REPORT · {market_label}</small><h1>{escape(primary)} 量化分析报告</h1><p>资产池：{escape(", ".join(symbols))}<br>分析：{metadata["analysis_start"]} — {metadata["analysis_end"]} · {metadata["observations"]} 个交易日<br>因子截止：{metadata["factor_end"]} · 生成时间：{escape(metadata["run_utc"])}</p></header><div class="cards">{cards}</div>'
+    notice = f'<section class="notice"><h2>数据说明</h2><p>来源：{escape(metadata["price_source"])}。没有删去异常收益，也没有填充缺失交易日；无效价格或缺口会使分析停止。复权与分红口径未独立验证，结果是研究诊断，不能等同于可实现的投资业绩。{escape(metadata.get("market_notes", "美国因子只用于当前美股范围。"))}</p></section>'
     footer = '<footer>数据来源：<a href="https://akshare.akfamily.xyz/data/stock/stock.html">AKShare</a> · <a href="https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html">Kenneth French Data Library</a>。输入快照、日期审计及 SHA256 见同目录 acquisition.json 和 analysis/manifest.json（完整模式）。</footer>'
+    if chinese:
+        footer = '<footer>来源：AKShare / 腾讯行情与新浪交易日历。模型默认不接入中国 FF 因子，不访问美国因子。<a href="https://fgk.chinatax.gov.cn/zcfgk/c102416/c5211343/content.html">2023 年证券交易印花税调整公告</a>。数据及参数记录见 acquisition.json。</footer>'
     (out / 'report.html').write_text(document.replace('TITLE', escape(primary + ' 量化分析报告')).replace('CONTENT', heading + notice + ''.join(sections) + footer), encoding='utf-8')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('symbols', nargs='+', type=ticker)
-    parser.add_argument('--benchmark', type=ticker, default='SPY')
+    parser.add_argument('--benchmark', type=ticker)
+    parser.add_argument('--market', choices=['auto', 'us', 'cn'], default='auto')
+    parser.add_argument('--cn-factors', type=Path, help='Chinese factor CSV with CN metadata JSON sidecar')
+    parser.add_argument('--cn-calendar', type=Path, help='Offline mainland calendar CSV, date column')
+    parser.add_argument('--cn-rf-annual', type=float, default=0., help='Explicit constant annual RF assumption when CN factors are absent')
     parser.add_argument('--start')
     parser.add_argument('--end')
     parser.add_argument('--train-end')
@@ -135,6 +157,25 @@ def main():
     args = parser.parse_args()
     if not 0 <= args.cost_bps < 1000:
         parser.error('--cost-bps must be between 0 and 1000 (exclusive)')
+    markets = {'cn' if cn_ticker(s) else 'us' for s in args.symbols}
+    if len(markets) != 1:
+        parser.error('Do not mix Chinese and US assets in one report')
+    detected = markets.pop()
+    if args.market not in ('auto', detected):
+        parser.error('--market conflicts with the ticker format')
+    args.market = detected
+    args.benchmark = args.benchmark or ('510300.SH' if detected == 'cn' else 'SPY')
+    if ('cn' if cn_ticker(args.benchmark) else 'us') != detected:
+        parser.error('Benchmark and stocks must use the same market')
+    if detected == 'cn':
+        if args.ff3 or args.ff5:
+            parser.error('US factor flags are not available for CN; use --cn-factors with its metadata')
+        if args.cn_factors and args.cn_rf_annual != 0:
+            parser.error('Choose either the RF in --cn-factors or --cn-rf-annual, not both')
+        from stock_report_cn import run
+        return run(args)
+    if args.cn_factors or args.cn_calendar or args.cn_rf_annual != 0:
+        parser.error('Chinese factor/calendar/RF options require CN tickers')
     symbols = list(dict.fromkeys([*args.symbols, args.benchmark]))
     if len(symbols) > 8:
         parser.error('Limit each report to 8 tickers including the benchmark')
@@ -262,7 +303,10 @@ def main():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == '_download':
+    if len(sys.argv) > 1 and sys.argv[1] == '_download_cn':
+        from stock_report_cn import acquire_worker
+        acquire_worker(*sys.argv[2:])
+    elif len(sys.argv) > 1 and sys.argv[1] == '_download':
         acquire_stock(ticker(sys.argv[2]), Path(sys.argv[3]))
     else:
         raise SystemExit(main())

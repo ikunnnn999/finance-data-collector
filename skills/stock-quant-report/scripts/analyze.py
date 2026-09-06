@@ -14,12 +14,13 @@ def main():
     parser.add_argument('--use-current-python', action='store_true')
     options, forwarded = parser.parse_known_args()
     if not forwarded or '--help' in forwarded or '-h' in forwarded:
-        print('Usage: python analyze.py NVDA [MSFT ...] [options]\n'
-              'Downloads US daily prices and generates report.html, report.md, PNG and CSV.\n'
-              'Options: --benchmark SPY --start YYYY-MM-DD --end YYYY-MM-DD\n'
+        print('Usage: python analyze.py NVDA [MSFT ...] or 600519 [000001 ...] [options]\n'
+              'Downloads US or Shanghai/Shenzhen prices; generates HTML, Markdown, PNG and CSV.\n'
+              'Options: --market auto|us|cn --benchmark TICKER --start YYYY-MM-DD --end YYYY-MM-DD\n'
               '         --train-end YYYY-MM-DD --cost-bps 10 --include-ml\n'
               '         --output-dir PATH (must be empty)\n'
               'Offline: --prices-dir PATH --ff3 FILE --ff5 FILE\n'
+              'China: --cn-calendar FILE --cn-factors FILE (CN metadata JSON required) --cn-rf-annual 0\n'
               'Runtime: --runtime-dir PATH or --use-current-python\n'
               'Default: creates an isolated workspace-local venv on first run. Python 3.11+ required.')
         return 0

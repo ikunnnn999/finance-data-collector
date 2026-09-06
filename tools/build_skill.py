@@ -4,9 +4,9 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ['stock_report.py', 'run_research.py', 'indicators/__init__.py', 'indicators/fama_french.py',
+FILES = ['stock_report.py', 'stock_report_cn.py', 'run_research.py', 'indicators/__init__.py', 'indicators/fama_french.py',
          'quant/__init__.py', 'quant/data.py', 'quant/metrics.py', 'quant/portfolio.py',
-         'quant/backtest.py', 'quant/direction.py']
+         'quant/backtest.py', 'quant/direction.py', 'quant/china.py']
 
 
 def main():

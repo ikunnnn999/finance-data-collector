@@ -1,4 +1,4 @@
 interface:
   display_name: "股票量化分析报告"
-  short_description: "输入美股代码，自动下载行情并生成因子、风险、组合及策略回测报告"
+  short_description: "输入美股或沪深A股代码，自动下载行情并生成风险、因子及策略报告"
   default_prompt: "使用 $stock-quant-report 分析 NVDA，下载数据并生成量化分析报告。"
