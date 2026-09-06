@@ -4,6 +4,35 @@
 
 这是已通过本地运行验证的研究原型。所选区间覆盖检查不等于价格真实性核验：AKShare 前复权价格与分红口径尚未独立验证，不能将诊断结果描述为可实现的投资业绩。
 
+## 作为可分享的 Skill 使用
+
+项目现已封装为自带分析引擎的 [stock-quant-report 技能](skills/stock-quant-report/SKILL.md)。支持美股股票与 ETF；输入代码后自动下载行情、官方因子、运行量化分析并输出独立 HTML 报告。
+
+**安装到 Codex：** 将下面这句话发给 Codex：
+
+> 请安装这个 GitHub skill：https://github.com/ikunnnn999/finance-data-collector/tree/main/skills/stock-quant-report
+
+也可以把 `skills/stock-quant-report` 整个文件夹复制到自己的 `$CODEX_HOME/skills/`（默认 `~/.codex/skills/`）。其他兼容 Agent Skills 的工具可按其安装规则放置该文件夹。安装后下一轮输入：
+
+```text
+使用 $stock-quant-report 分析 NVDA
+使用 $stock-quant-report 分析 AAPL MSFT，并加入机器学习基线
+```
+
+无需手动提供数据或作者电脑路径。技能运行时需要 Python 3.11+ 与网络，会在当前工作目录创建独立虚拟环境。默认最近五年、SPY 基准、70%/30% 时间划分和 10 bp 单边成本；可指定日期与成本。代码触发依赖宿主的技能选择，显式 `$stock-quant-report` 调用最明确。
+
+不使用技能宿主也可以直接运行：
+
+```powershell
+python skills/stock-quant-report/scripts/analyze.py NVDA
+```
+
+默认结果在当前工作目录 `outputs/<代码>-quant-<时间>/report.html`，另有 Markdown、PNG、CSV 和数据快照。每次生成新的目录。所选市场暂为美股；不会用美国因子分析 A 股/港股。价格与因子可能有发布日期差，实际共同截止日会写进报告。
+
+技能发布目录自带分析引擎，完整文件夹安装即可运行。维护者修改项目引擎后执行 `python tools/build_skill.py` 同步发布副本，测试会检测不同步。原始下载数据、虚拟环境和用户报告不放进 skill，也不提交到 Git。
+
+已在 Windows / Python 3.14 的全新独立环境中验证 NVDA 联网下载到完整报告的流程；技能格式校验和 16 项测试通过。其他系统使用可移植路径实现，尚未实机验证。
+
 ## 运行
 
 从项目根目录执行，Python 环境需安装依赖：

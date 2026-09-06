@@ -10,3 +10,5 @@ data/processed/
 .vscode/
 
 .DS_Store
+outputs/
+work/

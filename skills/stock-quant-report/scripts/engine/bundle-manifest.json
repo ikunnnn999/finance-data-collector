@@ -1,0 +1,12 @@
+{
+  "stock_report.py": "1e3bb8f9e560745fb2eea95fcbff20d5139f2a0feaee1c2d4ddb27e67657bd64",
+  "run_research.py": "44c5626f26d32cc9724d760d95fe9719a929d078db475c3a2bb7710f5c4081ec",
+  "indicators/__init__.py": "fc672d06a99cb5560e6fe614dff9db333035d772677cc7087a9933d61310627a",
+  "indicators/fama_french.py": "df8e0327a1d69fd0fac51100aadcaee7eb8d1c253062d9e69a7f42d1d155cf2c",
+  "quant/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "quant/data.py": "61345f6efbba5a022e45bb7996620470867868748979ca9232e6f5c75bc26fde",
+  "quant/metrics.py": "ec9dc4ab65abc59bb3c28e3255867e11a7a777538bd0bc6823b0e1dedfa13254",
+  "quant/portfolio.py": "838b55bbd603d3a8fcf42cb97900ca91e9ff22ae69401ab354d3c0536cea8832",
+  "quant/backtest.py": "6da08d602a7fd9903c50902b5bd585e38a3896a800a59fde426274d67956810a",
+  "quant/direction.py": "008e01f4160adf3201650dbc2d89a0e5111345baf348e342744b3843778cacdf"
+}
