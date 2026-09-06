@@ -4,3 +4,5 @@ yfinance
 matplotlib
 jupyter
 akshare
+statsmodels
+scipy
